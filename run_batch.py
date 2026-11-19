@@ -235,7 +235,7 @@ def filter_conflicting_reviews(reviews):
 
 
 def preprocess_product(product):
-    """Подготавливает отзывы и удаляет дубликаты."""
+    """Подготавливает товар и подбирает отзывы под лимит токенов."""
 
     reviews = product.get("reviews", [])
 
@@ -253,18 +253,29 @@ def preprocess_product(product):
     counts = Counter(normalized_reviews)
 
     unique_reviews = list(counts.keys())
-
     unique_reviews = filter_conflicting_reviews(unique_reviews)
 
-    # Ограничиваем количество отзывов, сохраняя первые уникальные.
-    unique_reviews = unique_reviews[:7]
+    # Сначала рассматриваем не более семи уникальных отзывов.
+    selected_reviews = unique_reviews[:7]
 
     result = dict(product)
-    result["reviews"] = unique_reviews
-    result["review_counts"] = {
-        review: counts[review]
-        for review in unique_reviews
-    }
+
+    # Удаляем отзывы с конца, пока запрос не поместится в лимит.
+    while selected_reviews:
+        result["reviews"] = selected_reviews
+        result["review_counts"] = {
+            review: counts[review]
+            for review in selected_reviews
+        }
+
+        if count_input_tokens(result) <= MAX_INPUT_TOKENS:
+            return result
+
+        selected_reviews.pop()
+
+    # Проверяем товар без отзывов.
+    result["reviews"] = []
+    result["review_counts"] = {}
 
     return result
 
