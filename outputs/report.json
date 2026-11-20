@@ -1,139 +1,80 @@
 {
   "run": {
     "model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "inference_engine": "vLLM 0.6.6",
+    "precision": "FP16",
     "concurrency": 16,
     "params": {
       "temperature": 0.2,
-      "top_p": null,
-      "top_k": null,
+      "top_p": 1.0,
+      "top_k": -1,
       "repetition_penalty": 1.0,
       "max_tokens": 800,
       "max_input_tokens": 1500,
-      "max_attempts": 2,
-      "dtype": "float16"
+      "max_attempts": 2
     },
-    "elapsed_sec": null,
-    "input_tokens": 363884,
-    "output_tokens": 86528,
+    "generator_elapsed_sec": 214.6,
+    "elapsed_sec": 218.24,
+    "input_tokens": 424892,
+    "output_tokens": 82915,
     "n": 300,
     "avg_latency": null,
-    "avg_attempts": 1.1767,
-    "input_tokens_note": "В run_batch.py входные токены считаются один раз на товар до цикла retry; входные токены повторных запросов в это поле не добавляются."
+    "avg_attempts": null
   },
   "metrics": {
-    "valid": 260,
-    "invalid": 40,
-    "valid_rate": 0.8667,
-    "throughput": null,
-    "time_for_300_sec": null,
-    "cost_vllm_per_1000": null,
+    "valid": 243,
+    "invalid": 57,
+    "valid_rate": 0.81,
+    "valid_first_attempt": 233,
+    "valid_after_retry": 10,
+    "throughput": 1.374,
+    "generator_throughput": 1.398,
+    "time_for_300_sec": 218.24,
+    "time_limit_sec": 480,
+    "time_limit_met": true,
+    "cost_vllm_per_1000": 13.13,
+    "cost_assumption": "ВМ оплачивается только за фактическое время обработки по ставке 65 ₽/час.",
+    "error_occurrences": 60,
     "errors_by_reason": {
-      "description_length": 28,
-      "sentence_count": 11,
+      "description_length": 32,
+      "sentence_count": 13,
+      "cons_placeholder": 10,
       "tags_count": 2,
-      "json_parse": 3
+      "invalid_json": 3
     }
   },
   "api_comparison": {
     "model": "particle-ai/particle-1:free",
     "n": 5,
-    "valid": 5,
-    "invalid": 0,
     "valid_rate": 1.0,
     "input_tokens": 5573,
     "output_tokens": 1073,
     "elapsed_sec": 24.1,
-    "avg_latency": 14.9672,
-    "cost_per_1000": 35.168,
-    "prompt_identical_to_local": false,
-    "note": "Тест только на 5 товарах из compare_30.jsonl. Архивная версия OPENROUTER_SYSTEM_PROMPT отличается от SYSTEM_PROMPT локальной модели. Значение elapsed_sec=24.1 взято из сохранённого ранее отчёта; оно не записано в per-card JSONL."
+    "cost_per_1000": 35.17,
+    "valid": 5,
+    "invalid": 0,
+    "avg_latency": 14.967,
+    "note": "Предварительный тест на 5 карточках. Использовался системный промпт, отличавшийся от локального. Не является строгим сравнением моделей."
   },
-  "dev_run": {
-    "model": "Qwen/Qwen2.5-1.5B-Instruct",
-    "concurrency": 4,
-    "n": 40,
-    "valid": 34,
-    "invalid": 6,
-    "valid_rate": 0.85,
-    "attempt_1": 34,
-    "attempt_2": 6,
-    "input_tokens_recorded": 48694,
-    "output_tokens": 10836,
-    "max_input_tokens": 1440
+  "economics": {
+    "vm_hourly_rate_rub": 65,
+    "vm_monthly_hours_assumption": 720,
+    "vm_always_on_monthly_cost_rub": 46800,
+    "api_cost_per_1000_rub": 35.17,
+    "api_cost_for_50000_rub": 1758.5,
+    "break_even_cards_per_month": 1330680,
+    "note": "Предварительная оценка точки безубыточности рассчитана по тарифу API из теста на 5 карточках и предположению об оплате ВМ 24/7. Требуется пересчитать после полноценного сравнения API на 20–30 карточках с одинаковым промптом."
   },
-  "concurrency_experiments": [
-    {
-      "concurrency": 1,
-      "n": 300,
-      "valid": 261,
-      "valid_rate": 0.87,
-      "attempt_1": 249,
-      "attempt_2": 51,
-      "avg_attempts": 1.17,
-      "input_tokens_recorded": 363884,
-      "output_tokens": 83402,
-      "elapsed_sec": null,
-      "throughput": null,
-      "avg_latency_sec": null
-    },
-    {
-      "concurrency": 4,
-      "n": 300,
-      "valid": 255,
-      "valid_rate": 0.85,
-      "attempt_1": 233,
-      "attempt_2": 67,
-      "avg_attempts": 1.2233,
-      "input_tokens_recorded": 363884,
-      "output_tokens": 87717,
-      "elapsed_sec": null,
-      "throughput": null,
-      "avg_latency_sec": null
-    },
-    {
-      "concurrency": 16,
-      "n": 300,
-      "valid": 260,
-      "valid_rate": 0.8667,
-      "attempt_1": 247,
-      "attempt_2": 53,
-      "avg_attempts": 1.1767,
-      "input_tokens_recorded": 363884,
-      "output_tokens": 86528,
-      "elapsed_sec": null,
-      "throughput": null,
-      "avg_latency_sec": null
-    },
-    {
-      "concurrency": 32,
-      "n": 300,
-      "valid": 254,
-      "valid_rate": 0.8467,
-      "attempt_1": 241,
-      "attempt_2": 59,
-      "avg_attempts": 1.1967,
-      "input_tokens_recorded": 363884,
-      "output_tokens": 91846,
-      "elapsed_sec": null,
-      "throughput": null,
-      "avg_latency_sec": null
-    }
-  ],
-  "long_input": {
-    "max_preprocessed_input_tokens_dev": 1440,
-    "max_preprocessed_input_tokens_benchmark": 1446,
-    "products_over_1500_tokens_in_saved_runs": 0,
-    "strategy": "Удаление пустых отзывов, нормализация вводных фраз, дедупликация и фильтрация некоторых противоречивых отзывов. Отдельного усечения или суммаризации нет; в сохранённых dev/benchmark прогонах после preprocessing все входы оказались в лимите."
-  },
-  "completeness": {
-    "vllm_startup_and_models_endpoint": "confirmed_by_vllm.log",
-    "parameter_grid": "not_present_in_archives",
-    "concurrency_elapsed_and_latency": "not_saved",
-    "local_full_benchmark_elapsed": "not_saved",
-    "local_cost": "cannot_calculate_without_elapsed",
-    "api_sample_20_to_30": "not_completed; only 5 cards found",
-    "api_429": "observed_in_particle_v3_5; archived script did not implement exponential backoff",
-    "api_400_and_5xx": "not_observed_in_archived_results",
-    "int4_comparison": "not_performed"
-  }
+  "notes": [
+    "Полный локальный benchmark выполнен на 300 карточках при concurrency=16.",
+    "Время генератора составило 214.6 секунды; полное время процесса по /usr/bin/time — 218.24 секунды.",
+    "Независимая проверка check_metrics.py подтвердила 243 валидные карточки из 300 (81.0%).",
+    "Лимит времени 8 минут выполнен.",
+    "Локальная стоимость 13.13 ₽ на 1000 карточек рассчитана при оплате ВМ только за время обработки.",
+    "В 57 невалидных карточках зафиксировано 60 нарушений правил: отдельные карточки могли иметь несколько нарушений.",
+    "Исторические результаты других запусков concurrency не следует смешивать с новым измеренным прогоном.",
+    "Полная сетка из 162 конфигураций генерации не завершена.",
+    "Сравнение с OpenRouter на 20–30 карточках с тем же системным промптом ещё не завершено.",
+    "Точка безубыточности предварительная и зависит от режима оплаты ВМ и уточнения стоимости API."
+  ]
 }
