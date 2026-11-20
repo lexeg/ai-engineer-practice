@@ -19,7 +19,7 @@
     "output_tokens": 82915,
     "n": 300,
     "avg_latency": null,
-    "avg_attempts": null
+    "avg_attempts": 1.223
   },
   "metrics": {
     "valid": 243,

@@ -1,0 +1,32 @@
+None of PyTorch, TensorFlow >= 2.0, or Flax have been found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+{
+  "model": "particle-ai/particle-1:free",
+  "n": 30,
+  "valid": 0,
+  "invalid": 30,
+  "valid_rate": 0.0,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "elapsed_sec": 92.983,
+  "throughput": 0.32263922173438453,
+  "avg_latency_per_card_sec": 0.0,
+  "cost_per_1000_rub": 0.0,
+  "concurrency": 4,
+  "temperature": 0.2,
+  "max_tokens": 2000,
+  "prompt_source": "run_batch.SYSTEM_PROMPT via run_batch.build_messages",
+  "finish_reason_counts": {
+    "exception": 60
+  },
+  "api_retry_policy": {
+    "max_retries": 3,
+    "retry_statuses": [
+      429,
+      "5xx"
+    ],
+    "backoff": "1, 2, 4 seconds"
+  }
+}
+
+REAL_TIME_SEC=107.24
+
