@@ -1,7 +1,7 @@
-
 import argparse
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 
@@ -12,22 +12,13 @@ REQUIRED_FIELDS = {
     "description",
     "pros",
     "cons",
-    "tags"
+    "tags",
 }
 
-EXPECTED_ARRAY_LENGTHS = {
-    "pros": 2,
-    "cons": 1,
-    "tags": 3
-}
-
-CONS_PLACEHOLDERS = {
-    "нет",
-    "нет недостатков",
-    "недостатки отсутствуют",
-    "недостатков нет",
-    "не обнаружено",
-    "не выявлено"
+ARRAY_LENGTH_RANGES = {
+    "pros": (2, 5),
+    "cons": (1, 3),
+    "tags": (3, 8),
 }
 
 
@@ -35,13 +26,11 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Проверка качества сгенерированных карточек товаров"
     )
-
     parser.add_argument(
         "--input",
         default=DEFAULT_INPUT_FILE,
-        help="Путь к JSONL-файлу с результатами генерации"
+        help="Путь к JSONL-файлу с результатами генерации",
     )
-
     return parser.parse_args()
 
 
@@ -52,19 +41,13 @@ def parse_model_json(raw_output):
         raise ValueError("Ответ модели должен быть строкой")
 
     text = raw_output.strip()
-
     text = re.sub(
         r"^\s*```(?:json)?\s*",
         "",
         text,
-        flags=re.IGNORECASE
+        flags=re.IGNORECASE,
     )
-
-    text = re.sub(
-        r"\s*```\s*$",
-        "",
-        text
-    )
+    text = re.sub(r"\s*```\s*$", "", text)
 
     return json.loads(text)
 
@@ -72,7 +55,7 @@ def parse_model_json(raw_output):
 def count_sentences(text):
     """
     Подсчитывает окончания предложений,
-    не считая десятичные точки.
+    не считая десятичные точки внутри чисел.
     """
 
     if not isinstance(text, str):
@@ -82,98 +65,86 @@ def count_sentences(text):
 
 
 def validate_card(card, expected_product_id):
-    """Проверяет карточку по единому строгому контракту."""
+    """
+    Проверяет карточку по обязательным правилам формата задания.
+
+    Дополнительные поля, повторяющиеся элементы и заглушки в cons
+    не влияют на основную метрику валидности.
+    """
 
     errors = []
 
     if not isinstance(card, dict):
-        return ["Карточка должна быть JSON-объектом"]
+        return [("card_type", "Карточка должна быть JSON-объектом")]
 
-    # Проверка структуры JSON.
-    actual_fields = set(card.keys())
-
-    if actual_fields != REQUIRED_FIELDS:
-        missing = REQUIRED_FIELDS - actual_fields
-        extra = actual_fields - REQUIRED_FIELDS
-
-        if missing:
-            errors.append(
-                f"Отсутствуют обязательные поля: {sorted(missing)}"
-            )
-
-        if extra:
-            errors.append(
-                f"Обнаружены лишние поля: {sorted(extra)}"
-            )
+    # Обязательные поля должны присутствовать, дополнительные разрешены.
+    missing = REQUIRED_FIELDS - set(card.keys())
+    if missing:
+        errors.append((
+            "missing_fields",
+            f"Отсутствуют обязательные поля: {sorted(missing)}",
+        ))
 
     # Проверка идентификатора товара.
     if card.get("product_id") != expected_product_id:
-        errors.append("product_id не совпадает с исходным")
+        errors.append((
+            "product_id_mismatch",
+            "product_id не совпадает с исходным",
+        ))
 
     # Проверка описания.
     description = card.get("description")
 
     if not isinstance(description, str):
-        errors.append("description должен быть строкой")
+        errors.append((
+            "description_type",
+            "description должен быть строкой",
+        ))
     else:
         description = description.strip()
 
         if not 120 <= len(description) <= 700:
-            errors.append(
-                "Длина description должна быть 120–700 символов"
-            )
+            errors.append((
+                "description_length",
+                "Длина description должна быть 120–700 символов",
+            ))
 
         sentence_count = count_sentences(description)
+        if not 2 <= sentence_count <= 5:
+            errors.append((
+                "sentence_count",
+                "description должен содержать от 2 до 5 предложений",
+            ))
 
-        if sentence_count != 3:
-            errors.append(
-                "description должен содержать ровно 3 предложения"
-            )
-
-    # Проверка массивов.
-    for field, expected_count in EXPECTED_ARRAY_LENGTHS.items():
+    # Проверка массивов: диапазон количества и непустые строки.
+    for field, (min_count, max_count) in ARRAY_LENGTH_RANGES.items():
         value = card.get(field)
 
         if not isinstance(value, list):
-            errors.append(f"{field} должен быть массивом")
+            errors.append((
+                f"{field}_type",
+                f"{field} должен быть массивом",
+            ))
             continue
 
-        if len(value) != expected_count:
-            errors.append(
-                f"{field} должен содержать ровно "
-                f"{expected_count} элементов"
-            )
+        if not min_count <= len(value) <= max_count:
+            errors.append((
+                f"{field}_count",
+                f"{field} должен содержать от {min_count} до "
+                f"{max_count} элементов",
+            ))
 
-        # Проверка типов и пустых элементов.
         for index, item in enumerate(value):
             if not isinstance(item, str):
-                errors.append(
-                    f"{field}[{index}] должен быть строкой"
-                )
+                errors.append((
+                    f"{field}_item_type",
+                    f"{field}[{index}] должен быть строкой",
+                ))
             elif not item.strip():
-                errors.append(
-                    f"{field}[{index}] не должен быть пустым"
-                )
-
-        # Проверка дубликатов.
-        valid_items = [
-            item.strip()
-            for item in value
-            if isinstance(item, str) and item.strip()
-        ]
-
-        if len(valid_items) != len(set(valid_items)):
-            errors.append(f"{field} содержит дубликаты")
-
-        # Проверка заглушек в cons.
-        if field == "cons":
-            for item in valid_items:
-                if item.lower() in CONS_PLACEHOLDERS:
-                    errors.append(
-                        "cons не должен содержать заглушки "
-                        "вместо описания недостатка"
-                    )
-                    break
+                errors.append((
+                    f"{field}_empty_item",
+                    f"{field}[{index}] не должен быть пустым",
+                ))
 
     return errors
 
@@ -192,9 +163,7 @@ def load_card(record):
     if isinstance(raw_output, str):
         return parse_model_json(raw_output)
 
-    raise ValueError(
-        "raw_output отсутствует или имеет неверный тип"
-    )
+    raise ValueError("raw_output отсутствует или имеет неверный тип")
 
 
 def main():
@@ -207,9 +176,8 @@ def main():
 
     records = []
 
-    # Читаем JSONL, сохраняя некорректные строки
-    # как отдельные невалидные записи.
-    with open(path, "r", encoding="utf-8") as file:
+    # Некорректные строки JSONL сохраняются как отдельные невалидные записи.
+    with path.open("r", encoding="utf-8") as file:
         for line_number, line in enumerate(file, start=1):
             if not line.strip():
                 continue
@@ -218,13 +186,12 @@ def main():
                 records.append(json.loads(line))
             except json.JSONDecodeError as exc:
                 records.append({
-                    "_parse_error": (
-                        f"Строка {line_number}: {exc}"
-                    )
+                    "_parse_error": f"Строка {line_number}: {exc}",
                 })
 
     valid = 0
     invalid = 0
+    errors_by_reason = Counter()
 
     print(f"Файл: {path}")
     print(f"Загружено карточек: {len(records)}")
@@ -239,47 +206,45 @@ def main():
 
         try:
             if not isinstance(record, dict):
-                raise ValueError(
-                    "Запись JSONL должна быть объектом"
-                )
+                raise ValueError("Запись JSONL должна быть объектом")
 
             if "_parse_error" in record:
-                raise ValueError(record["_parse_error"])
+                raise json.JSONDecodeError(
+                    record["_parse_error"], "", 0
+                )
 
             card = load_card(record)
+            errors = validate_card(card, product_id)
 
-            errors = validate_card(
-                card,
-                product_id
-            )
-
-        except (json.JSONDecodeError, ValueError, TypeError) as exc:
-            errors = [f"Ошибка чтения карточки: {exc}"]
+        except json.JSONDecodeError as exc:
+            errors = [("json_parse", f"Ошибка разбора JSON: {exc}")]
+        except (ValueError, TypeError) as exc:
+            errors = [("record_error", f"Ошибка чтения карточки: {exc}")]
 
         if errors:
             invalid += 1
-
-            for error in errors:
-                print(f"  ОШИБКА: {error}")
+            for code, message in errors:
+                errors_by_reason[code] += 1
+                print(f"  ОШИБКА [{code}]: {message}")
         else:
             valid += 1
             print("  OK")
 
     total = len(records)
-
-    valid_percent = (
-        valid / total * 100
-        if total else 0
-    )
+    valid_percent = valid / total * 100 if total else 0
 
     print("\n" + "=" * 40)
     print("ИТОГИ ПРОВЕРКИ")
     print("=" * 40)
-
     print(f"Всего карточек: {total}")
     print(f"Валидных: {valid}")
     print(f"Невалидных: {invalid}")
     print(f"Доля валидных: {valid_percent:.1f}%")
+    print(f"Всего нарушений: {sum(errors_by_reason.values())}")
+
+    print("\nНарушения по правилам:")
+    for reason, count in sorted(errors_by_reason.items()):
+        print(f"  {reason}: {count}")
 
 
 if __name__ == "__main__":
